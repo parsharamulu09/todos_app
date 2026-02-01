@@ -1,65 +1,157 @@
-import Image from "next/image";
+"use client";
+
+import { useEffect, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+
+type Todo = {
+  id: number;
+  title: string;
+  completed: boolean;
+};
 
 export default function Home() {
+  const [todos, setTodos] = useState<Todo[]>([]);
+  const [title, setTitle] = useState("");
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editText, setEditText] = useState("");
+
+  const fetchTodos = async () => {
+    const res = await fetch("/api/todos");
+    const data = await res.json();
+    setTodos(data);
+  };
+
+  useEffect(() => {
+    fetchTodos();
+  }, []);
+
+  const addTodo = async () => {
+    if (!title.trim()) return;
+
+    await fetch("/api/todos", {
+      method: "POST",
+      body: JSON.stringify({ title }),
+    });
+
+    setTitle("");
+    fetchTodos();
+  };
+
+  const toggleTodo = async (id: number, title: string) => {
+    await fetch(`/api/todos/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ title }),
+    });
+    fetchTodos();
+  };
+
+  const deleteTodo = async (id: number) => {
+    await fetch(`/api/todos/${id}`, { method: "DELETE" });
+    fetchTodos();
+  };
+
+  const saveEdit = async (id: number) => {
+    if (!editText.trim()) return;
+
+    await fetch(`/api/todos/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ title: editText }),
+    });
+
+    setEditingId(null);
+    setEditText("");
+    fetchTodos();
+  };
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+    <div className="min-h-screen bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 flex items-center justify-center p-6">
+      <div className="bg-white w-full max-w-md rounded-3xl shadow-2xl p-6">
+        <h1 className="text-3xl font-bold text-center mb-6">✨ Animated Todo</h1>
+
+        {/* Add Todo */}
+        <div className="flex gap-2 mb-6">
+          <input
+            className="flex-1 p-3 rounded-xl border focus:ring-2 focus:ring-purple-400 outline-none"
+            placeholder="Add a task..."
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+          />
+          <button
+            onClick={addTodo}
+            className="bg-purple-600 text-white px-4 rounded-xl hover:scale-105 active:scale-95 transition"
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+            Add
+          </button>
         </div>
-      </main>
+
+        {/* Todo List */}
+        <div className="space-y-3">
+          <AnimatePresence>
+            {todos.map((todo) => (
+              <motion.div
+                key={todo.id}
+                layout
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, x: 80 }}
+                className={`p-3 rounded-xl shadow-md ${
+                  todo.completed
+                    ? "bg-green-100 line-through text-gray-500"
+                    : "bg-gray-100"
+                }`}
+              >
+                {editingId === todo.id ? (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="flex gap-2"
+                  >
+                    <input
+                      className="flex-1 p-2 rounded border"
+                      value={editText}
+                      onChange={(e) => setEditText(e.target.value)}
+                    />
+                    <button
+                      onClick={() => saveEdit(todo.id)}
+                      className="text-green-600 font-bold"
+                    >
+                      Save
+                    </button>
+                  </motion.div>
+                ) : (
+                  <div className="flex justify-between items-center">
+                    <span
+                      onClick={() => toggleTodo(todo.id, todo.title)}
+                      className="cursor-pointer flex-1"
+                    >
+                      {todo.title}
+                    </span>
+
+                    <div className="flex gap-3 ml-3">
+                      <button
+                        onClick={() => {
+                          setEditingId(todo.id);
+                          setEditText(todo.title);
+                        }}
+                        className="text-blue-500 hover:scale-110 transition"
+                      >
+                        ✏️
+                      </button>
+
+                      <button
+                        onClick={() => deleteTodo(todo.id)}
+                        className="text-red-500 hover:scale-110 transition"
+                      >
+                        ❌
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </motion.div>
+            ))}
+          </AnimatePresence>
+        </div>
+      </div>
     </div>
   );
 }
